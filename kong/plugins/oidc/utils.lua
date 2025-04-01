@@ -12,6 +12,11 @@ local function parseFilters(csvFilters)
   return filters
 end
 
+function M.is_websocket_request()
+  local headers = ngx.req.get_headers()
+  return headers["Upgrade"] and string.lower(headers["Upgrade"]) == "websocket"
+end
+
 function M.get_redirect_uri_path(ngx)
   local function drop_query()
     local uri = ngx.var.request_uri
@@ -63,7 +68,12 @@ end
 
 function M.exit(httpStatusCode, message, ngxCode)
   ngx.status = httpStatusCode
-  ngx.say(message)
+  
+  -- For WebSocket connections, don't call ngx.say() as it breaks the protocol
+  if not M.is_websocket_request() then
+    ngx.say(message)
+  end
+  
   ngx.exit(ngxCode)
 end
 
@@ -94,6 +104,11 @@ function M.has_bearer_access_token()
     end
   end
   return false
+end
+
+function M.get_token_from_query_param(param_name)
+  local args = ngx.req.get_uri_args()
+  return args[param_name]
 end
 
 return M

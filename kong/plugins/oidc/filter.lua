@@ -1,4 +1,5 @@
 local M = {}
+local utils = require("kong.plugins.oidc.utils")
 
 local function shouldIgnoreRequest(patterns)
   if (patterns) then
@@ -11,6 +12,17 @@ local function shouldIgnoreRequest(patterns)
 end
 
 function M.shouldProcessRequest(config)
+  -- Handle WebSocket connections specially
+  if utils.is_websocket_request() then
+    if config.websocket_auth == "yes" then
+      ngx.log(ngx.DEBUG, "OidcHandler processing WebSocket request with token validation")
+      return true
+    else
+      ngx.log(ngx.DEBUG, "OidcHandler skipping WebSocket request")
+      return false
+    end
+  end
+  
   return not shouldIgnoreRequest(config.filters)
 end
 

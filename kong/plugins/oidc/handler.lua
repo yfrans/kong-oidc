@@ -63,11 +63,34 @@ function make_oidc(oidcConfig)
   return res
 end
 
+function get_access_token_from_websocket(oidcConfig)
+  if oidcConfig.websocket_auth == "yes" and utils.is_websocket_request() then
+    local token_param = oidcConfig.websocket_token_param or "access_token"
+    local access_token = utils.get_token_from_query_param(token_param)
+    
+    if access_token then
+      ngx.log(ngx.DEBUG, "Found token in query param for WebSocket request")
+      -- Set the Authorization header with the token for introspection
+      ngx.req.set_header("Authorization", "Bearer " .. access_token)
+      return access_token
+    else
+      ngx.log(ngx.ERR, "WebSocket authentication required but no token found in query param: " .. token_param)
+      utils.exit(ngx.HTTP_UNAUTHORIZED, "Unauthorized", ngx.HTTP_UNAUTHORIZED)
+    end
+  end
+  return nil
+end
+
 function introspect(oidcConfig)
+  -- For WebSocket connections, check for the token in query parameter
+  if utils.is_websocket_request() and oidcConfig.websocket_auth == "yes" then
+    get_access_token_from_websocket(oidcConfig)
+  end
+  
   if utils.has_bearer_access_token() or oidcConfig.bearer_only == "yes" then
     local res, err = require("resty.openidc").introspect(oidcConfig)
     if err then
-      if oidcConfig.bearer_only == "yes" then
+      if oidcConfig.bearer_only == "yes" or (utils.is_websocket_request() and oidcConfig.websocket_auth == "yes") then
         ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
         utils.exit(ngx.HTTP_UNAUTHORIZED, err, ngx.HTTP_UNAUTHORIZED)
       end

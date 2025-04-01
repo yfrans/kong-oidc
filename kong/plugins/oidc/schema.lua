@@ -18,6 +18,8 @@ return {
     recovery_page_path = { type = "string" },
     logout_path = { type = "string", required = false, default = '/logout' },
     redirect_after_logout_uri = { type = "string", required = false, default = '/' },
-    filters = { type = "string" }
+    filters = { type = "string" },
+    websocket_auth = { type = "string", required = true, default = "no" },
+    websocket_token_param = { type = "string", required = false, default = "access_token" }
   }
 }
